@@ -1,5 +1,6 @@
 export class Episode {
   id: number;
   title: string;
-  description: string;
+  category: string;
+  rating: number;
 }

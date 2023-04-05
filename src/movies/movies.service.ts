@@ -7,11 +7,11 @@ export class MoviesService {
   getAll(): Movie[] {
     return this.movies;
   }
-  getOne(id: string): Movie {
-    return this.movies.find((element) => element.id === parseInt(id));
+  getOne(id: number): Movie {
+    return this.movies.find((element) => element.id === id);
   }
-  deleteOne(id: string): boolean {
-    this.movies.filter((element) => element.id !== parseInt(id));
+  deleteOne(id: number): boolean {
+    this.movies.filter((element) => element.id !== id);
     return true;
   }
   create(movieData: Movie) {
