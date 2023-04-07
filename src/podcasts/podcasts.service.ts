@@ -5,48 +5,66 @@ import { CreatePodcastDto } from './dtos/create-podcast.dto';
 import { PodCast } from './entities/podcast.entity';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UpdatePodcastDto } from './dtos/update-podcast.dto';
+import { CoreOutput } from './dtos/output.dto';
+import {
+  EpisodesOutput,
+  PodcastOutput,
+  EpisodesSearchInput,
+} from './dtos/podcast.dto';
 
 @Injectable()
 export class PodcastsService {
   private podcasts: PodCast[] = [];
-  getAll(): { podcasts: PodCast[]; err: string | null } {
-    return { podcasts: this.podcasts, err: null };
+  getAllPodcasts(): PodCast[] {
+    return this.podcasts;
   }
-  getOne(id: number): { podcast: PodCast | null; err: string | null } {
-    const foundPodcast = this.podcasts.filter((podcast) => podcast.id === id);
-    if (foundPodcast.length === 0) {
-      return { podcast: null, err: 'Podcast not found' };
+  // getAll(): { podcasts: PodCast[]; err: string | null } {
+  //   return { podcasts: this.podcasts, err: null };
+  // }
+  getPodcast(id: number): PodcastOutput {
+    // const foundPodcast = this.podcasts.filter((podcast) => podcast.id === id);
+    const podcast = this.podcasts.find((podcast) => podcast.id === id);
+    if (!podcast) {
+      return {
+        ok: false,
+        error: `${id} id podcast does't exist!`,
+      };
     }
-    if (foundPodcast.length === 1) {
-      return { podcast: foundPodcast[0], err: null };
-    }
-    if (foundPodcast.length > 2) {
-      return { podcast: null, err: 'More than one items with same id.' };
-    }
-    // if (!foundPodcast) {
-    //   throw new NotFoundException(`podcasts with id ${id} not found`);
-    // }
-    // return { podcast: foundPodcast, err: null };
+    return {
+      ok: true,
+      podcast,
+    };
   }
-  deleteOne(id: number): { err: string | null } {
+  // if (foundPodcast.length === 0) {
+  //   return { podcast: null, err: 'Podcast not found' };
+  // }
+  // if (foundPodcast.length === 1) {
+  //   return { podcast: foundPodcast[0], err: null };
+  // }
+  // if (foundPodcast.length > 2) {
+  //   return { podcast: null, err: 'More than one items with same id.' };
+  // }
+
+  deleteOnePodcast(id: number): CoreOutput {
     // this.getOne(id);
     // this.podcasts.filter((podcast) => podcast.id !== id);
+    const { ok, error } = this.getPodcast(id);
+    if (!ok) {
+      return { ok, error };
+    }
     this.podcasts = this.podcasts.filter((p) => p.id !== id);
-    return { err: null };
+    return { ok };
   }
-  create({ title: title, category: category }: CreatePodcastDto): {
-    id: number;
-    err: string | null;
-  } {
-    const id = Date.now();
+  createPodcast({ title, category }: CreatePodcastDto): CoreOutput {
+    // const id = Date.now();
     this.podcasts.push({
-      id,
+      id: this.podcasts.length + 1,
       title,
       category,
       rating: 0,
       episodes: [],
     });
-    return { id, err: null };
+    return { ok: true, error: null };
     // casts: CreatePodcastDto ) {
     // this.podcasts.push({
     //   id: this.podcasts.length + 1,
@@ -54,99 +72,134 @@ export class PodcastsService {
     //   episodes: [],
     // });
   }
-  update(id: number, updateData: UpdatePodcastDto): { err: string | null } {
-    const { podcast, err: findErr } = this.getOne(id);
-    if (findErr) {
-      return { err: findErr };
+  updatePodcast({ id, ...rest }: UpdatePodcastDto): CoreOutput {
+    // const { podcast, err: findErr } = this.getOne(id);
+    const { ok, error, podcast } = this.getPodcast(id);
+    if (!ok) {
+      return { ok, error };
     }
-    const { err: deleteErr } = this.deleteOne(id);
-    if (deleteErr) {
-      return { err: deleteErr };
-    }
+    // if (findErr) {
+    //   return { err: findErr };
+    // }
+    // const { err: deleteErr } = this.deleteOne(id);
+    // if (deleteErr) {
+    //   return { err: deleteErr };
+    // }
     // this.deleteOne(id);
-    this.podcasts.push({ ...podcast, ...updateData });
-    return { err: null };
+    this.podcasts = this.podcasts.filter((podcast) => podcast.id !== id);
+    this.podcasts.push({ ...podcast, ...rest });
+    return { ok };
   }
-  getEpisode(podcastId: number): {
-    episodes: Episode[] | null;
-    err: string | null;
-  } {
-    const { podcast, err } = this.getOne(podcastId);
-    if (err) {
-      return { episodes: null, err };
+
+  getEpisode(podcastId: number): EpisodesOutput {
+    const { ok, error, podcast } = this.getPodcast(podcastId);
+    if (!ok) {
+      return { ok, error };
     }
-    return { episodes: podcast.episodes, err: null };
+    return { ok: true, episodes: podcast.episodes };
   }
-  createEpisode(
-    podcastId: number,
-    { title, category }: CreateEpisodeDto,
-  ): { epsodeId: number | null; err: string | null } {
-    const { podcast, err: findErr } = this.getOne(podcastId);
-    if (findErr) {
-      return { epsodeId: null, err: findErr };
+  createEpisode({
+    id: podcastId,
+    title,
+    category,
+  }: CreateEpisodeDto): CoreOutput {
+    const { ok, error, podcast } = this.getPodcast(podcastId);
+    if (!ok) {
+      return { ok, error };
     }
-    const epsodeId = Date.now();
-    const newEpisode: Episode = { id: epsodeId, title, category, rating: 0 };
-    const { err } = this.update(podcastId, {
-      ...podcast,
+    // const epsodeId = Date.now();
+    const newEpisode: Episode = {
+      id: podcast.episodes.length + 1,
+      title,
+      category,
+    };
+    // const { err } = this.update(podcastId, {
+    //   ...podcast,
+    //   episodes: [...podcast.episodes, newEpisode],
+    // });
+    // if (err) {
+    //   return { epsodeId: null, err };
+    // }
+    this.updatePodcast({
+      id: podcastId,
       episodes: [...podcast.episodes, newEpisode],
     });
-    if (err) {
-      return { epsodeId: null, err };
-    }
-    return { epsodeId: epsodeId, err: null };
+    return { ok: true };
   }
-  deleteEpisode(podcastId: number, episodeId: number): { err: string | null } {
-    const { podcast, err: findErr } = this.getOne(podcastId);
-    if (findErr) {
-      return { err: findErr };
+  deleteEpisode({ podcastId, episodeId }: EpisodesSearchInput): CoreOutput {
+    const { ok, error, podcast } = this.getPodcast(podcastId);
+    // if (findErr) {
+    //   return { err: findErr };
+    // }
+    if (!ok) {
+      return { ok, error };
     }
-    const { err } = this.update(podcastId, {
+    this.updatePodcast({
+      id: podcastId,
       episodes: podcast.episodes.filter((episode) => episode.id !== episodeId),
     });
-    if (err) {
-      return { err };
-    }
-    return { err: null };
+    // const { err } = this.update(podcastId, {
+    //   episodes: podcast.episodes.filter((episode) => episode.id !== episodeId),
+    // });
+    // if (err) {
+    //   return { err };
+    // }
+    return { ok: true };
   }
-  findEpisode(
-    podcastId: number,
-    episodeId: number,
-  ): { episode: Episode | null; err: string | null } {
-    const { episodes, err: findErr } = this.getEpisode(podcastId);
-    if (findErr) {
-      return { episode: null, err: 'Episode not found' };
+  // findEpisode(
+  //   podcastId: number,
+  //   episodeId: number,
+  // ): { episode: Episode | null; err: string | null } {
+  //   const { episodes, err: findErr } = this.getEpisode(podcastId);
+  //   if (findErr) {
+  //     return { episode: null, err: 'Episode not found' };
+  //   }
+  //   const episode = episodes.find((episode) => episode.id === episodeId);
+  //   if (!episode) {
+  //     return { episode: null, err: 'Episode not found' };
+  //   }
+  //   return { episode, err: null };
+  // }
+  updateEpisode({
+    podcastId,
+    episodeId,
+    ...rest
+  }: UpdateEpisodeDto): CoreOutput {
+    // const { episode, err: findEpisodeErr } = this.findEpisode(
+    //   podcastId,
+    //   episodeId,
+    // );
+    const { ok, error, podcast } = this.getPodcast(podcastId);
+    if (!ok) {
+      return { ok, error };
     }
-    const episode = episodes.find((episode) => episode.id === episodeId);
-    if (!episode) {
-      return { episode: null, err: 'Episode not found' };
-    }
-    return { episode, err: null };
-  }
-  updateEpisode(
-    podcastId: number,
-    episodeId: number,
-    updateEpisodeDto: UpdateEpisodeDto,
-  ): { err: string | null } {
-    const { episode, err: findEpisodeErr } = this.findEpisode(
-      podcastId,
-      episodeId,
+
+    // if (findEpisodeErr) {
+    //   return { err: findEpisodeErr };
+    // }
+    // const { err: deleteErr } = this.deleteEpisode(podcastId, episodeId);
+    // if (deleteErr) {
+    //   return { err: deleteErr };
+    // }
+    const episodeIndex = podcast.episodes.findIndex(
+      ({ id }) => id === episodeId,
     );
-    if (findEpisodeErr) {
-      return { err: findEpisodeErr };
-    }
-    const { err: deleteErr } = this.deleteEpisode(podcastId, episodeId);
-    if (deleteErr) {
-      return { err: deleteErr };
-    }
-    const { podcast, err: foundPodcastErr } = this.getOne(podcastId);
-    if (foundPodcastErr) {
-      return { err: foundPodcastErr };
-    }
-    this.update(podcastId, {
-      ...podcast,
-      episodes: [...podcast.episodes, { ...episode, ...updateEpisodeDto }],
+    const newEpisode = { ...podcast.episodes[episodeIndex], ...rest };
+    this.deleteEpisode({ podcastId, episodeId });
+    const { podcast: changedPodcast } = this.getPodcast(podcastId);
+    this.updatePodcast({
+      id: podcastId,
+      episodes: [...changedPodcast.episodes, newEpisode],
     });
-    return { err: null };
+    return { ok: true };
+    // const { podcast, err: foundPodcastErr } = this.getOne(podcastId);
+    // if (foundPodcastErr) {
+    //   return { err: foundPodcastErr };
+    // }
+    // this.update(podcastId, {
+    //   ...podcast,
+    //   episodes: [...podcast.episodes, { ...episode, ...updateEpisodeDto }],
+    // });
+    // return { err: null };
   }
 }
